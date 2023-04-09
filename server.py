@@ -1,14 +1,16 @@
-
 import models, torch
 
+from push.push import Push
 
 class Server(object):
 	
-	def __init__(self, conf, eval_dataset):
+	def __init__(self, conf, eval_dataset, push: Push):
 	
 		self.conf = conf 
 		
 		self.global_model = models.get_model(self.conf["model_name"]) 
+
+		self.push = push
 		
 		self.eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=self.conf["batch_size"], shuffle=True)
 		
