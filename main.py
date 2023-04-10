@@ -79,8 +79,13 @@ if __name__ == '__main__':
 		acc_list.append(acc)
 		loss_list.append(loss)
 		
-		message = "[Global Epoch] Epoch " + str(e) + "done, acc = " + str(acc) + ", loss = " + str(loss)
+		message = "[Global Epoch] Epoch " + str(e) + " done, acc = " + str(acc) + ", loss = " + str(loss)
 		notify_user(message, push)
+		# 设置终止条件
+		if len(acc_list) > 1 and abs(acc - acc_list[-2]) < conf["accuracy_difference_threshold"] \
+				and abs(loss - loss_list[-2] < conf["loss_difference_threshold"]):
+			notify_user("Model has converged, stop training", push)
+			break
 
 
 	# 保存模型

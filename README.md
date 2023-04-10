@@ -171,6 +171,17 @@ for e in range(conf["global_epochs"]):
 * k：每一轮迭代时，服务端会从所有客户端中挑选k个客户端参与训练。
 * batch_size：本地训练每一轮的样本数
 * lr，momentum，lambda：本地训练的超参数设置
+* accuracy_difference_threshold: 先后两次accuracy差值的绝对值
+* loss_difference_threshold: 先后两次loss差值的临界值的绝对值, 如果全局模型两次loss之差绝对值小于`accuracy_difference_threshold`, 并且两次accuracy之差的绝对值小于`loss_difference_threshold`, 会终止训练
+* is_push_enable: 是否进行消息推送 可选[true, false], 若选择false, 可忽略下面推送相关的设置
+* push_type: 推送方式, 目前只接入了'Telegram'
+* proxy_type: 代理类型, 可选[socks5, http, https], 默认为null, 中国大陆的主机可以考虑使用代理或者自行反代[Telegram API](https://api.telegram.org/)
+* proxy_host: 代理地址
+* proxy_port: 代理端口
+* proxy_username: 代理用户名
+* proxy_password: 代理密码
+* telegram_id: Telegram用户id
+* api_key: Telegram bot token
 
 
 
