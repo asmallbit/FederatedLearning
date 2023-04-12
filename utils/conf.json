@@ -1,15 +1,11 @@
 {
 	"model_name" : "resnet18",
 	
-	"no_models" : 10,
-	
 	"type" : "cifar",
 	
 	"global_epochs" : 50,
 	
 	"local_epochs" : 3,
-	
-	"k" : 5,
 	
 	"batch_size" : 32,
 	

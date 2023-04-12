@@ -1,14 +1,18 @@
 import models, torch
+from typing import Union
 
 from push.push import Push
 
 class Server(object):
 	
-	def __init__(self, conf, eval_dataset, push: Push):
+	def __init__(self, conf, model, eval_dataset, push: Push, 
+					device: Union[int, str]="cpu"):
 	
 		self.conf = conf 
 		
-		self.global_model = models.get_model(self.conf["model_name"]) 
+		self.global_model = model
+
+		self.device = device
 
 		self.push = push
 		
@@ -32,14 +36,12 @@ class Server(object):
 		correct = 0
 		dataset_size = 0
 		for batch_id, batch in enumerate(self.eval_loader):
-			data, target = batch 
+			data, target = batch
+			data = data.to(self.device)
+			target = target.to(self.device)
+
 			dataset_size += data.size()[0]
-			
-			if torch.cuda.is_available():
-				data = data.cuda()
-				target = target.cuda()
-				
-			
+
 			output = self.global_model(data)
 			
 			total_loss += torch.nn.functional.cross_entropy(output, target,

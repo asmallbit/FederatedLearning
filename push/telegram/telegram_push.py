@@ -1,7 +1,5 @@
 import requests
 import json
-import socket
-import socks
 
 def send_telegram_message(message: str,
                           user_id: str,
@@ -11,12 +9,11 @@ def send_telegram_message(message: str,
                           proxy_port: str = None,
                           proxy_username: str = None,
                           proxy_password: str = None):
-    responses = {}
 
     proxies = None
     if proxy_type is not None and proxy_host is not None:
         if proxy_type not in ["socks5", "http", "https"]:
-            self.logger.error("proxy type %s unknown, disable proxy", self.config.PROXY_TYPE)
+            print("proxy type %s unknown, disable proxy", proxy_type)
             raise Exception()
 
         proxies = {

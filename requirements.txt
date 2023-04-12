@@ -1,0 +1,5 @@
+matplotlib==3.2.1
+requests==2.28.2
+torch==1.13.1
+torchvision==0.9.1
+PySocks==1.7.1
