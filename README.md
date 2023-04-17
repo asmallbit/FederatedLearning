@@ -27,6 +27,53 @@ torchrun --nproc_per_node=6 --nnodes=1 --node_rank=0 --rdzv_id=456 --rdzv_backen
 ```
 关于`torchrun`中各个参数的意义， 可以参见[Pytorch文档](https://pytorch.org/docs/stable/elastic/run.html#definitions)
 
+关于配置文件 `utils/conf.json`
+```
+{
+	"model_name" : "resnet18",  // Model的类型
+    
+	"type" : "cifar",           // 数据集的类型，目前有cifar, mnist, dog-and-cat三个选项
+	
+	"global_epochs" : 50,       // 全局epoch
+
+	"local_epochs" : 3,         // 本地epoch
+	
+	"batch_size" : 32,
+	
+	"lr" : 0.005,               // 学习率
+
+	"factor": 0.1,              // 客户端采用的自适应修改学习率， factor和patience是torch.optim.lr_scheduler.ReduceLROnPlateau()的两个参数
+
+	"patience": 10,
+	
+	"momentum" : 0.0001,        // SGD中的动量
+	
+	"lambda" : 0.1,
+
+	"accuracy_difference_threshold" : 0.0001,   // 当两次全局的accuracy相差的绝对值小于此值，同时也满足loss_difference_threshold中的条件，会视为收敛，进而结束训练过程
+
+	"loss_difference_threshold" : 0.0001,       // 当两次全局的loss相差的绝对值小于此值，和accuracy_difference_threshold搭配使用
+
+	"is_push_enable": true,     // 其否启用推送，接入推送的目的主要是方便实时查看训练的进度
+
+	"push_type": "telegram",    // 推送方式，目前只接入了telegram
+
+	"proxy_type": null,         // 是否需要使用代理，可选值socks5, http, https, 默认为null，即不使用代理
+
+	"proxy_host": null,         // 主机名称，IP地址或者域名
+
+	"proxy_port": null,         // 端口号
+
+	"proxy_username": null,     // 代理验证的用户名
+
+	"proxy_password": null,     // 代理验证的密码
+
+	"telegram_id": "123456789", // 你的Telegram User id
+
+	"api_key": "xxxxxxx:xxxxxxxxxx"     // Telegram Bot的token
+}
+```
+
 # Thanks
 [Pytorch](https://pytorch.org/)
 [Azure](https://azure.microsoft.com/)
