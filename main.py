@@ -21,9 +21,9 @@ loss_list = []
 
 def main(conf, args):
 	init_distributed_mode() # 进程组初始化
-	local_rank = int(os.environ["LOCAL_RANK"])
-	global_rank = int(os.environ["RANK"])
-	local_world_size = int(os.environ["LOCAL_WORLD_SIZE"])
+	local_rank = get_local_rank()
+	global_rank = get_global_rank()
+	local_world_size = get_local_world_size()
 	gpu = args.gpu
 
 	push = Push(conf)		# Push消息
@@ -31,7 +31,7 @@ def main(conf, args):
 	if local_world_size != 1:
 		device = torch.device("cuda:{}".format(local_rank))
 	elif gpu == 0:
-		device = torch.device("cuda:{0}") # 只有1个GPU
+		device = torch.device("cuda:0") # 只有1个GPU
 	else:
 		device = torch.device("cpu")
 
@@ -45,28 +45,27 @@ def main(conf, args):
 	train_datasets, eval_datasets = datasets.get_dataset("./data/", conf["type"])
 	global_model = models.get_model(conf["model_name"], True, device) # Set the flag to True to get pretrained model
 	
-	if is_global_main_process(global_rank):	# 服务端推送消息
+	if is_global_main_process():	# 服务端推送消息
 		server = Server(conf, global_model, eval_datasets, push, device)
 		message = "************************  TASK STARTED  ************************\nModel: " \
 					+ conf["model_name"] + "\nDataset: " + conf["type"] \
-					+ "\nBatch Size: " + str(conf["batch_size"]) + "\nNumber of Clients: " + os.environ["WORLD_SIZE"] \
+					+ "\nBatch Size: " + str(conf["batch_size"]) + "\nNumber of Clients: " + str(get_global_world_size()) \
 					+ "\nLearing rate: " + str(conf["lr"]) + "\nMomentum: " + str(conf["momentum"]) \
 					+ "\nGlobal Epochs: " + str(conf["global_epochs"]) + "\nLocal Epochs: " + str(conf["local_epochs"]) 
 
 		notify_user(message, push)
 		print("\n")
-	
-	client = Client(conf, global_model, train_datasets, push, global_rank, device)
+	client = Client(conf, global_model, train_datasets, eval_datasets, push, device)
 	dist.barrier() # 确保客户端全部创建完毕
 
 	for e in range(conf["global_epochs"]):		# global epochs 全局轮次
-		if is_global_main_process(global_rank):
+		if is_global_main_process():
 			# 每一轮epoch开始时提示
 			message = "==============  Global Epoch " + str(e) + "  =============="
 			notify_user(message, push)
 			message = "[Global Model] Ephch " + str(e) + " started"
 			notify_user(message, push)
-		elif is_global_main_process(global_rank) and local_rank == 0:
+		elif is_global_main_process():
 			# 在local_rank的非根节点的terminal打印消息, 否则客户端的terminal并不能看到是第几轮训练
 			message = "==============  Global Epoch " + str(e) + "  =============="
 			print(message)
@@ -83,7 +82,7 @@ def main(conf, args):
 		for name, params in global_model.state_dict().items():
 			weight_accumulator[name].add_(diff[name])
 				
-		if is_global_main_process(global_rank):
+		if is_global_main_process():
 			# 模型参数聚合
 			notify_user("[Global Model] Aggregating the global model from trained local models", push)
 			server.model_aggregate(weight_accumulator)
@@ -104,7 +103,7 @@ def main(conf, args):
 		dist.barrier()	# 保持epoch同步
 
 	# 只需要服务器去处理保存模型和保存accuracy/loss随epoch次数的变化图的操作
-	if is_global_main_process(global_rank):
+	if is_global_main_process():
 		# 保存模型
 		type = conf["type"]
 		model_name = conf["model_name"]

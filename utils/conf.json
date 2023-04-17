@@ -10,6 +10,10 @@
 	"batch_size" : 32,
 	
 	"lr" : 0.005,
+
+	"factor": 0.1,
+
+	"patience": 10,
 	
 	"momentum" : 0.0001,
 	

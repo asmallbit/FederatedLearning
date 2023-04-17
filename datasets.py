@@ -4,7 +4,8 @@ import torch
 from torchvision import datasets, transforms
 
 def get_dataset(dir, name):
-
+	torch.manual_seed(5)
+	
 	if name=='mnist':
 		train_dataset = datasets.MNIST(dir, train=True, download=True, transform=transforms.ToTensor())
 		eval_dataset = datasets.MNIST(dir, train=False, transform=transforms.ToTensor())

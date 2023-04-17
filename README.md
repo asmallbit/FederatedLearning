@@ -17,6 +17,7 @@ PySocks==1.7.1
 ```
 torchrun --nproc_per_node=6 --nnodes=10 --node_rank=0 --rdzv_id=456 --rdzv_backend=c10d --rdzv_endpoint=x.x.x.x:xxxx main.py
 torchrun --nproc_per_node=4 --nnodes=10 --node_rank=1 --rdzv_id=456 --rdzv_backend=c10d --rdzv_endpoint=x.x.x.x:xxxx main.py
+...... #在所有参与训练的机器上依次执行
 ```
 
 * Single Node Multi-GPU:
