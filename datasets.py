@@ -5,7 +5,6 @@ from torchvision import datasets, transforms
 from dataset import dog_and_cat
 
 def get_dataset(dir, name):
-	torch.manual_seed(5)
 	
 	if name=='mnist':
 		train_transform = transforms.Compose([

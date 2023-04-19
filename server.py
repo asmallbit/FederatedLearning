@@ -16,18 +16,16 @@ class Server(object):
 
 		self.push = push
 		
-		self.eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=self.conf["batch_size"], shuffle=True)
+		self.eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=self.conf["batch_size"], shuffle=False)
 		
 	
 	def model_aggregate(self, weight_accumulator):
 		for name, data in self.global_model.state_dict().items():
 			
 			update_per_layer = weight_accumulator[name] * self.conf["lambda"]
-			
-			if data.type() != update_per_layer.type():
-				data.add_(update_per_layer.to(torch.int64))
-			else:
-				data.add_(update_per_layer)
+			data = data.float()
+			update_per_layer = update_per_layer.float()
+			data.add_(update_per_layer)
 				
 	def model_eval(self):
 		self.global_model.eval()
@@ -49,7 +47,7 @@ class Server(object):
 			pred = output.data.max(1)[1]  # get the index of the max log-probability
 			correct += pred.eq(target.data.view_as(pred)).cpu().sum().item()
 
-		acc = 100.0 * (float(correct) / float(dataset_size))
-		total_l = total_loss / dataset_size
+		acc = float(correct) / float(dataset_size)
+		loss = total_loss / dataset_size
 
-		return acc, total_l
+		return acc, loss

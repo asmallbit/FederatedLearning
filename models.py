@@ -1,6 +1,7 @@
 
 import torch
 from model.cat_and_dog import CatAndDogConvNet
+from model.mnist import MNIST_CNN, MNIST_RNN
 from torchvision import models
 from typing import Union
 
@@ -24,5 +25,11 @@ def get_model(name="vgg16", pretrained=True,
 		model = models.googlenet(pretrained=pretrained)
 	elif name == "cat-and-dog-conv-net":
 		model = CatAndDogConvNet()
+	elif name == "mnist-cnn":
+		model = MNIST_CNN()
+	elif name == "mnist-rnn":
+		model = MNIST_RNN()
+	else:
+		raise Exception("We don't support this model now")
 	
 	return model.to(device)
