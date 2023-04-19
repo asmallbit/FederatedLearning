@@ -1,5 +1,6 @@
 
 import torch
+from model.cat_and_dog import CatAndDogConvNet
 from torchvision import models
 from typing import Union
 
@@ -21,5 +22,7 @@ def get_model(name="vgg16", pretrained=True,
 		model = models.inception_v3(pretrained=pretrained)
 	elif name == "googlenet":		
 		model = models.googlenet(pretrained=pretrained)
+	elif name == "cat-and-dog-conv-net":
+		model = CatAndDogConvNet()
 	
 	return model.to(device)
