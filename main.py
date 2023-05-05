@@ -17,10 +17,6 @@ from utils.distributed_utils import *
 from utils.output_handler import *
 from utils.utils import *
 
-# 分别用来存储每次epoch的acc和loss
-acc_list = []
-loss_list = []
-
 def main(conf, args):
 	seed_everything(5)
 	init_distributed_mode() # 进程组初始化
@@ -28,6 +24,7 @@ def main(conf, args):
 	global_rank = get_global_rank()
 	local_world_size = get_local_world_size()
 	global_world_size = get_global_world_size()
+	k = conf["k"]
 
 	gpu = args.gpu
 
@@ -47,25 +44,26 @@ def main(conf, args):
 
 	train_datasets, eval_datasets = datasets.get_dataset("./data", conf["type"])
 	global_model = models.get_model(conf["model_name"], True, device) # Set the flag to True to get pretrained model
-	
-	# TODO: server应该是应该只在主节点, 这里为了每个节点都能更新全局模型, 在所有参与训练的进程都部署一个server
-	server = Server(conf, global_model, eval_datasets, push, device)
+	servers = [Server(conf, global_model, eval_datasets, push, device) for _ in range(k)]	# 创建k个server, 相互独立但初始值相同
+	diffs = [dict() for _ in range(global_world_size)]
 
 	if is_global_main_process():
+		# 分别用来存储全局epoch的acc和loss
+		acc_list = [[] for _ in range(k)]
+		loss_list = [[] for _ in range(k)]
+		# 分别用来存储每个客户端本地epoch的acc和loss
 		client_acc_list = [[] for _ in range(global_world_size)]
 		client_loss_list = [[] for _ in range(global_world_size)]
 		# 服务端推送消息
-		# server = Server(conf, global_model, eval_datasets, push, device)
-
 		message = (f"************************  TASK STARTED  ************************\nModel: {conf['model_name']}\n"
 				f"Dataset: {conf['type']}\nBatch Size: {conf['batch_size']}\nNumber of Clients: {global_world_size}\n"
-				f"Learning rate: {conf['lr']}\nMomentum: {conf['momentum']}\nFactor: {conf['factor']}\n"
+				f"Learning rate: {conf['lr']}\nMomentum: {conf['momentum']}\nK: {k}\nFactor: {conf['factor']}\n"
 				f"Patience: {conf['patience']}\nGlobal Epochs: {conf['global_epochs']}\n"
 				f"Local Epochs: {conf['local_epochs']}")
 
 		notify_user(message, push)
 		print("\n")
-	client = Client(conf, server.global_model, train_datasets, eval_datasets, push, device)
+	client = Client(conf, global_model, train_datasets, eval_datasets, push, device)
 	dist.barrier() # 确保客户端全部创建完毕
 
 	for e in range(conf["global_epochs"]):		# global epochs 全局轮次
@@ -82,8 +80,22 @@ def main(conf, args):
 			message = "[Global Model] Ephch " + str(e) + " started"
 			print(message)
 
-		diff = client.local_train(global_model)
+		model_params = client.local_train()
 		dist.barrier()	# 训练完毕
+		# 客户端向服务端发送本地训练后的模型和全局模型的diff, 服务端接收客户端发送的数据并保存
+		if is_global_main_process():
+			diffs[0] = model_params
+			# 收集各个客户端的diff
+			for key, _ in global_model.state_dict().items():
+				for i in range(1, global_world_size):
+					temp = torch.zeros_like(model_params[key])
+					dist.recv(temp, src=i)
+					diffs[i][key] = temp
+		else:
+			# 向服务端发送diff各个key对应的value
+			for key, value in model_params.items():
+				dist.send(value, dst=0)
+		dist.barrier()
 
 		# 用区分rank为0的进程, send和recv不能用于同一个进程
 		# ValueError: Invalid destination rank: destination rank should not be the same as the rank of the current process.
@@ -102,31 +114,53 @@ def main(conf, args):
 		else:
 			client.model_eval(e)
 
-		# 聚合diff
-		for key, value in diff.items():
-			dist.all_reduce(value, op=dist.ReduceOp.SUM)
-			dist.barrier()
-
-		# TODO: server应该是应该只在主节点, 这里为了每个节点都能更新全局模型, 在所有参与训练的进程都部署一个server并进行更新
-		server.model_aggregate(diff)
-
 		if is_global_main_process():
 			# 模型参数聚合
+			# 根据diffs数组中的值对diff进行聚合
+			kmeans = cluster_kmeans(diffs, k)
+			kmeans_grouped = {}	# 存储各个客户端与全局模型的对应关系
+			weight_accumulators = [[] for _ in range(k)] # 用于存储每组模型参数的数组
+			for i, label in enumerate(kmeans.labels_):
+				weight_accumulators[label].append(diffs[i])
+				if label in kmeans_grouped:
+					kmeans_grouped[label].append(i)
+				else:
+					kmeans_grouped[label] = [i]
+			for i in range(k):
+				notify_user(f"Global Group {i} contains client {kmeans_grouped[i]}", push)
 			notify_user("[Global Model] Aggregating the global model from trained local models", push)
-			# server.model_aggregate(weight_accumulator)
-			
-			acc, loss = server.model_eval()
 
-			# Append accuracy and loss for this epoch to the corresponding lists
-			acc_list.append(acc)
-			loss_list.append(loss)
-			message = "[Global Epoch] Epoch " + str(e) + " done, acc = " + str(acc) + ", loss = " + str(loss)
-			notify_user(message, push)
-			# 设置终止条件
-			if len(acc_list) > 1 and abs(acc - acc_list[-2]) < conf["accuracy_difference_threshold"] \
-					and abs(loss - loss_list[-2] < conf["loss_difference_threshold"]):
-				notify_user("Model has converged, stop training", push)
-				break
+			# 更新k个全局模型
+			for i in range(k):
+				servers[i].model_aggregate(servers[i].calculate_weight_accumulator(weight_accumulators[i]))
+				acc, loss = servers[i].model_eval()
+				# Append accuracy and loss for this epoch to the corresponding lists
+				acc_list[i].append(acc)
+				loss_list[i].append(loss)
+				message = f"Global Model {i}: acc = {acc} , loss = {loss}"
+				notify_user(message, push)
+			notify_user("[Global Epoch] Epoch " + str(e) + " done!", push)
+
+			# 将更新后的全局模型的参数分发到各个节点
+			for key, values in kmeans_grouped.items():	# 这里的key是k-means结果中客户端所属的组, value是各个客户端节点的global rank值
+				for value in values:
+					if value != 0:
+						# 将diffs的第{key}个值发送到客户端{value}
+						for param, data in diffs[key].items():
+							dist.send(data, dst=value)
+					else:
+						# 更新rank为0的客户端的数据
+						client.update_model(diffs[key])		
+		else:
+			# 接收服务器发来的参数
+			for key, value in model_params.copy().items():	# 更新diff的值
+				temp = torch.zeros_like(model_params[key])
+				dist.recv(temp, src=0)
+				model_params[key] = temp
+
+			# 更新本地模型的值
+			client.update_model(model_params)
+
 		dist.barrier()
 
 	# 只需要服务器去处理保存模型和保存accuracy/loss随epoch次数的变化图的操作
@@ -137,27 +171,30 @@ def main(conf, args):
 		path = "./result/" + type + "/" + model_name + "/"
 		if not os.path.isdir(path):
 			os.makedirs(path)
-		torch.save(server.global_model.state_dict(), path + type + "-" + model_name + ".pth")
+		for i in range(k):
+			torch.save(servers[i].global_model.state_dict(), path + type + "-" + model_name + f"-{i}.pth")
 		
 		# 绘制准确率图像
 		colors = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black']
 		path = "./figures/" + type + "/" + model_name + "/"
 		if not os.path.isdir(path):
 			os.makedirs(path)
-		plt.plot(range(conf["global_epochs"]), acc_list, label='Global Accuracy', linewidth=1.0)
+		for acc in acc_list:
+			plt.plot(range(conf["global_epochs"]), acc, label=f'Global Model{i} Accuracy', linewidth=1.0, color=colors[i % len(colors)])
 		plt.xlabel('Epoch')
 		plt.ylabel('Accuracy')
 		plt.legend()
-		plt.savefig(path + type + "-" + model_name + "-accuracy.png")
+		plt.savefig(path + type + "-" + model_name + "-global-accuracy.png")
 		plt.show()
 
 		# 绘制误差图像
 		plt.clf()
-		plt.plot(range(conf["global_epochs"]), loss_list, label='Global Loss', linewidth=1.0)
+		for loss in loss_list:
+			plt.plot(range(conf["global_epochs"]), loss, label=f'Global Model{i} Loss', linewidth=1.0, color=colors[i % len(colors)])
 		plt.xlabel('Epoch')
 		plt.ylabel('Loss')
 		plt.legend()
-		plt.savefig(path + type + "-" + model_name + "-loss.png")
+		plt.savefig(path + type + "-" + model_name + "-global-loss.png")
 		plt.show()
 
 		# 绘制各个客户端的accuracy图像

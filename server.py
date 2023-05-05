@@ -17,7 +17,18 @@ class Server(object):
 		self.push = push
 		
 		self.eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=self.conf["batch_size"], shuffle=False)
-		
+
+	def calculate_weight_accumulator(self, models_params):
+		weight_accumulator = {}
+		for model_params in models_params:
+			# 聚合这些数据
+			for key, value in model_params.items():
+				if key in weight_accumulator:
+					weight_accumulator[key] += (value - self.global_model.state_dict()[key]) / len(models_params)
+				else:
+					weight_accumulator[key] = (value - self.global_model.state_dict()[key]) / len(models_params)
+		return weight_accumulator
+
 	
 	def model_aggregate(self, weight_accumulator):
 		for name, data in self.global_model.state_dict().items():

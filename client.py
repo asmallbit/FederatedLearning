@@ -32,20 +32,21 @@ class Client(object):
 		train_indices = all_range[self.client_id * data_len: (self.client_id + 1) * data_len]
 
 		self.train_loader = DataLoader(self.train_dataset, batch_size=self.conf["batch_size"], 
-                                    sampler=SubsetRandomSampler(train_indices), shuffle=True,
+                                    sampler=SubsetRandomSampler(train_indices),
 									num_workers=4, prefetch_factor=2, pin_memory=True) # 这里pin_memory的作用是加速GPU读取数据
 
 		self.eval_loader = DataLoader(eval_dataset, batch_size=self.conf["batch_size"],
 									shuffle=False,
 									num_workers=4, prefetch_factor=2, pin_memory=True)
+
+	def update_model(self, diff):
+		for name, data in self.local_model.state_dict().items():
+			self.local_model.state_dict()[name] = diff[name].clone()
 									
-	def local_train(self, model):
+	def local_train(self):
 		# space = [Real(0.0001, 0.1, name='learning_rate')]
 		# for name, param in model.state_dict().items():
-		# 	self.local_model.state_dict()[name].copy_(param.clone())
-
-		self.local_model = copy.deepcopy(model)
-	
+		# 	self.local_model.state_dict()[name].copy_(param.clone())	
 		optimizer = torch.optim.SGD(self.local_model.parameters(), lr=self.conf['lr'],
 									momentum=self.conf['momentum'])
 		scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', 
@@ -75,23 +76,9 @@ class Client(object):
 			message = "[Client] Client " + str(self.client_id) + " epoch " + str(e) + " done."
 			notify_user(message, self.push)
 
-		diff = dict()
-		for name, data in self.local_model.state_dict().items():
-			diff[name] = (data - model.state_dict()[name])
-			#print(diff[name])
-
 		message = "[Client] Client " + str(self.client_id) + " local train done"
 		notify_user(message, self.push)
-
-		# 非rank 0的客户端进程通过send()方法和rank 0进程进行交互，rank 0的客户端进程通过返回值传递到main方法
-		# if not is_global_main_process():
-		# 	# 分别将长度和二进制的diff数据发送到server
-		# 	diff_binary = pickle.dumps(diff)
-		# 	len_tensor = torch.tensor([len(diff_binary)], dtype=torch.int)
-		# 	dist.send(len_tensor, 0) # 发送长度
-		# 	dist.send(diff_binary, 0)	# 发送二进制数据
-
-		return diff
+		return self.local_model.state_dict()
 
 
 	def model_eval(self, epoch):

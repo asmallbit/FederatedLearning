@@ -37,6 +37,8 @@ torchrun --nproc_per_node=6 --nnodes=1 --node_rank=0 --rdzv_id=456 --rdzv_backen
 	"global_epochs" : 50,       // 全局epoch
 
 	"local_epochs" : 3,         // 本地epoch
+
+	"k" : 3,					// 聚类的簇数
 	
 	"batch_size" : 32,
 	
