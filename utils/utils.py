@@ -16,7 +16,7 @@ def seed_everything(seed):
 
 def cluster_kmeans(dicts, k):
     # 将每个字典中的tensor值转换为numpy数组
-    array_list = [[] for i in range(get_global_world_size())]    
+    array_list = [[] for i in range(get_global_world_size() + k)]    
 
     i = 0
     for dict in dicts:

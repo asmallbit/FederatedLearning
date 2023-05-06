@@ -30,7 +30,7 @@ torchrun --nproc_per_node=6 --nnodes=1 --node_rank=0 --rdzv_id=456 --rdzv_backen
 关于配置文件 `utils/conf.json`
 ```
 {
-	"model_name" : "resnet18",  // Model的类型
+	"model_name" : "resnet18",  // Model的类型, 可选值可以参见models.py文件
     
 	"type" : "cifar",           // 数据集的类型，目前有cifar, mnist, dog-and-cat三个选项
 	
@@ -48,7 +48,7 @@ torchrun --nproc_per_node=6 --nnodes=1 --node_rank=0 --rdzv_id=456 --rdzv_backen
 
 	"patience": 10,
 	
-	"momentum" : 0.0001,        // SGD中的动量
+	"momentum" : 0.9,        // SGD中的动量
 	
 	"lambda" : 0.1,
 

@@ -45,7 +45,7 @@ def main(conf, args):
 	train_datasets, eval_datasets = datasets.get_dataset("./data", conf["type"])
 	global_model = models.get_model(conf["model_name"], True, device) # Set the flag to True to get pretrained model
 	servers = [Server(conf, global_model, eval_datasets, push, device) for _ in range(k)]	# 创建k个server, 相互独立但初始值相同
-	diffs = [dict() for _ in range(global_world_size)]
+	diffs = [dict() for _ in range(global_world_size + k)]
 
 	if is_global_main_process():
 		# 分别用来存储全局epoch的acc和loss
@@ -117,22 +117,58 @@ def main(conf, args):
 		if is_global_main_process():
 			# 模型参数聚合
 			# 根据diffs数组中的值对diff进行聚合
+			'''
+			这里我们将k个全局模型也添加到diffs里，一起作为kmeans的输入，更新全局模型时，我们只需要将该全局模型所在簇
+			的模型参数使用FedAvg方法进行合并，添加到该全局模型的参数中完成更新
+			'''
+			# 将k个全局模型也添加到diffs
+			for i in range(k):
+				diffs[global_world_size + i] = servers[i].global_model.state_dict()
+			# 聚合
 			kmeans = cluster_kmeans(diffs, k)
 			kmeans_grouped = {}	# 存储各个客户端与全局模型的对应关系
 			weight_accumulators = [[] for _ in range(k)] # 用于存储每组模型参数的数组
+			global_model_dict = {}
 			for i, label in enumerate(kmeans.labels_):
-				weight_accumulators[label].append(diffs[i])
+				if i < global_world_size:
+					weight_accumulators[label].append(diffs[i]) # 只添加非全局模型
+				else:
+					global_model_dict[i - global_world_size] = label
 				if label in kmeans_grouped:
 					kmeans_grouped[label].append(i)
 				else:
 					kmeans_grouped[label] = [i]
+
+			# 用于存储全局模型对应的本地模型，主要用来在terminal显示客户端所属簇和判断全局模型所在簇的客户端模型
+			global_models_grouped = [[] for _ in range(k)]
+			# 遍历kmeans_grouped, 找到每个全局模型所在的簇
+			for labels, group in kmeans_grouped.items():
+				for item in group:
+					if item >= global_world_size:
+						# 找到对应的元素
+						global_models_grouped[item - global_world_size] = group
+
+			# kmeans_grouped进行修改，去掉值大于等于global_world_size的元素, 也就是删除全局模型对应索引
+			for labels, group in kmeans_grouped.items():
+				temp = 0
+				while temp < len(group):
+					if group[temp] >= global_world_size:
+						del group[temp]
+					else:
+						temp += 1
+
 			for i in range(k):
-				notify_user(f"Global Group {i} contains client {kmeans_grouped[i]}", push)
+				if len(global_models_grouped[i]) == 0:
+					notify_user(f"Global Group {i} contains nothing", push)
+				else:
+					notify_user(f"Global Group {i} contains client {global_models_grouped[i]}", push)
 			notify_user("[Global Model] Aggregating the global model from trained local models", push)
 
 			# 更新k个全局模型
 			for i in range(k):
-				servers[i].model_aggregate(servers[i].calculate_weight_accumulator(weight_accumulators[i]))
+				if len(global_models_grouped) != 0:	# 仅在此全局模型所在簇有其他客户端模型时才进行更新
+					servers[i].model_aggregate(
+						servers[i].calculate_weight_accumulator(weight_accumulators[global_model_dict[i]]))	# 更新n个全局模型
 				acc, loss = servers[i].model_eval()
 				# Append accuracy and loss for this epoch to the corresponding lists
 				acc_list[i].append(acc)
