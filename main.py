@@ -198,12 +198,12 @@ def main(conf, args):
 			for i in range(k):
 				if len(global_models_grouped) != 0:	# 仅在此全局模型所在簇有其他客户端模型时才进行更新
 					servers[i].model_aggregate(
-						servers[i].calculate_weight_accumulator(weight_accumulators[global_model_dict[i]]))	# 更新n个全局模型
-				acc, loss = servers[i].model_eval()
+						servers[i].calculate_weight_accumulator(weight_accumulators[global_model_dict[i]], split_idx))	# 更新n个全局模型
+				acc, acc_5, loss = servers[i].model_eval()
 				# Append accuracy and loss for this epoch to the corresponding lists
 				acc_list[i].append(acc)
 				loss_list[i].append(loss)
-				message = f"Global Model {i}: acc = {acc} , loss = {loss}"
+				message = f"Global Model {i}: acc = {acc} , acc_5 = {acc_5} loss = {loss}"
 				notify_user(message, push)
 			notify_user("[Global Epoch] Epoch " + str(e) + " done!", push)
 

@@ -10,8 +10,9 @@ def seed_everything(seed):
     random.seed(seed)             # Python random module
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)  # Current GPU
-        torch.backends.cudnn.benchmark = False    # Close optimization
-        torch.backends.cudnn.deterministic = True # Close optimization
+        torch.backends.cudnn.enabled = True
+        torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.deterministic = True
         torch.cuda.manual_seed_all(seed) # All GPU (Optional)
 
 def cluster_kmeans(dicts, k):

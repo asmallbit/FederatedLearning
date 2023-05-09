@@ -39,19 +39,30 @@ class Server(object):
 		plt.savefig(f"{path}/data-distribution.png")
 		return split_idx
 
-	def calculate_weight_accumulator(self, models_params):
+	def calculate_weight_accumulator(self, models_params, samples):
+		len_array = []
+		total = 0
+		for sample in samples:
+			len_array.append(sample.shape[0])
+			total += sample.shape[0]
 		weight_accumulator = {}
 		for model_params in models_params:
 			# 聚合这些数据
+			index = 0
 			for key, value in model_params.items():
 				if key in weight_accumulator:
-					weight_accumulator[key] += (value - self.global_model.state_dict()[key]) / len(models_params)
+					weight_accumulator[key] += value * (len_array[index] / total)
 				else:
-					weight_accumulator[key] = (value - self.global_model.state_dict()[key]) / len(models_params)
+					weight_accumulator[key] = value * (len_array[index] / total)
 		return weight_accumulator
 
 	
 	def model_aggregate(self, weight_accumulator):
+		# 清除模型参数
+		for key in self.global_model.state_dict():
+			torch.nn.init.zeros_(self.global_model.state_dict()[key])
+		
+		# 更新模型参数
 		for name, data in self.global_model.state_dict().items():
 			
 			update_per_layer = weight_accumulator[name] * self.conf["lambda"]
@@ -64,6 +75,7 @@ class Server(object):
 		
 		total_loss = 0.0
 		correct = 0
+		correct_k = 0
 		dataset_size = 0
 		for batch_id, batch in enumerate(self.eval_loader):
 			data, target = batch
@@ -77,9 +89,14 @@ class Server(object):
 			total_loss += torch.nn.functional.cross_entropy(output, target,
 											  reduction='sum').item() # sum up batch loss
 			pred = output.data.max(1)[1]  # get the index of the max log-probability
-			correct += pred.eq(target.data.view_as(pred)).cpu().sum().item()
+			correct += pred.eq(target.data.view_as(pred)).cpu().sum().float().item()
+			# top5 correct
+			target_resize = target.view(-1, 1)
+			_, pred = output.topk(5)
+			correct_k += torch.eq(pred, target_resize).cpu().sum().float().item()
 
-		acc = float(correct) / float(dataset_size)
+		acc = correct / dataset_size
+		acc5 = correct_k / dataset_size
 		loss = total_loss / dataset_size
 
-		return acc, loss
+		return acc, acc5, loss

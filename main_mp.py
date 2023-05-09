@@ -4,8 +4,8 @@ import multiprocessing as mp
 
 # 参数分别为rank和总进程数
 def run(rank: int, number: int):
-    p = subprocess.Popen(f"GLOO_SOCKET_IFNAME=zt5u4wmczg torchrun --nproc_per_node=1 \
-                            --nnodes={number} --node_rank={rank} --rdzv_id=456 --rdzv_endpoint=192.168.191.175:3214 main.py --gpu -1", 
+    p = subprocess.Popen(f"GLOO_SOCKET_IFNAME=lo torchrun --nproc_per_node=1 \
+                            --nnodes={number} --node_rank={rank} --rdzv_id=456 --rdzv_endpoint=127.0.0.1:3214 main.py --gpu -1", 
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 
     while p.poll() is None:
