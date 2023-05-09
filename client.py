@@ -1,7 +1,7 @@
 import models, torch, copy, os
 # from skopt.space import Real
 import pickle
-from torch.utils.data import DataLoader, SubsetRandomSampler
+from torch.utils.data import DataLoader, SubsetRandomSampler, Subset
 from typing import Union
 
 import torch.distributed as dist
@@ -10,7 +10,7 @@ from utils.output_handler import *
 
 class Client(object):
 
-	def __init__(self, conf, model, train_dataset, eval_dataset, push: Push,
+	def __init__(self, conf, model, train_dataset, eval_dataset, push: Push, dataset_split_idx,
 					device: Union[int, str]="cpu"):
 		
 		self.conf = conf
@@ -26,13 +26,9 @@ class Client(object):
 		self.train_dataset = train_dataset
 
 		self.eval_dataset = eval_dataset
-		
-		all_range = list(range(len(self.train_dataset)))
-		data_len = int(len(self.train_dataset) / get_global_world_size())
-		train_indices = all_range[self.client_id * data_len: (self.client_id + 1) * data_len]
 
-		self.train_loader = DataLoader(self.train_dataset, batch_size=self.conf["batch_size"], 
-                                    sampler=SubsetRandomSampler(train_indices),
+		self.train_loader = DataLoader(dataset=Subset(self.train_dataset, dataset_split_idx),
+									batch_size=self.conf["batch_size"], 
 									num_workers=4, prefetch_factor=2, pin_memory=True) # 这里pin_memory的作用是加速GPU读取数据
 
 		self.eval_loader = DataLoader(eval_dataset, batch_size=self.conf["batch_size"],
@@ -40,8 +36,7 @@ class Client(object):
 									num_workers=4, prefetch_factor=2, pin_memory=True)
 
 	def update_model(self, diff):
-		for name, data in self.local_model.state_dict().items():
-			self.local_model.state_dict()[name] = diff[name].clone()
+		self.local_model.load_state_dict(diff)
 									
 	def local_train(self):
 		# space = [Real(0.0001, 0.1, name='learning_rate')]

@@ -1,7 +1,12 @@
 import models, torch
+import datasets
+import matplotlib.pyplot as plt
+import numpy as np
+import os
 from typing import Union
 
 from push.push import Push
+from utils.distributed_utils import *
 
 class Server(object):
 	
@@ -17,6 +22,22 @@ class Server(object):
 		self.push = push
 		
 		self.eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=self.conf["batch_size"], shuffle=False)
+
+	def split_data(self):
+		train_datasets, eval_datasets = datasets.get_dataset("./data", self.conf["type"])
+		labels = np.array(train_datasets.targets)
+		split_idx = datasets.split_non_iid(labels, alpha=self.conf["alpha"], n_clients=get_global_world_size())
+		plt.figure(figsize=(20, 3))
+		plt.hist([labels[idc] for idc in split_idx], stacked=True,
+					bins=np.arange(min(labels) - 0.5, max(labels) + 1.5, 1),
+					label=[f"Client{i}" for i in range(get_global_world_size())], rwidth=0.5)
+		plt.xticks(np.arange(len(train_datasets.classes)), np.arange(0, len(train_datasets.classes)))
+		plt.legend()
+		path = f"./figures/{self.conf['type']}/{self.conf['model_name']}"
+		if not os.path.isdir(path):
+			os.makedirs(path)
+		plt.savefig(f"{path}/data-distribution.png")
+		return split_idx
 
 	def calculate_weight_accumulator(self, models_params):
 		weight_accumulator = {}

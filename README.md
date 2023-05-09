@@ -5,10 +5,12 @@ Pytorch实现联邦学习
 ```
 python 3.8.5
 matplotlib==3.2.1
+numpy==1.23.5
 requests==2.28.2
 torch==1.13.1
 torchvision==0.9.1
 PySocks==1.7.1
+scikit-learn==1.2.2
 ```
 
 # 运行
@@ -37,6 +39,8 @@ torchrun --nproc_per_node=6 --nnodes=1 --node_rank=0 --rdzv_id=456 --rdzv_backen
 	"global_epochs" : 50,       // 全局epoch
 
 	"local_epochs" : 3,         // 本地epoch
+
+	"alpha": 0.05,				// 刻画Non-IID程度
 
 	"k" : 3,					// 聚类的簇数
 	

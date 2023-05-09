@@ -1,6 +1,7 @@
 
 
 import torch 
+import numpy as np
 from torchvision import datasets, transforms
 from dataset import dog_and_cat
 
@@ -61,3 +62,16 @@ def get_dataset(dir, name):
 		eval_dataset = dog_and_cat.DogCatDataset(f'{dir}/dog-and-cat', train=False, transform=transform_test)
 
 	return train_dataset, eval_dataset
+
+# 获取Non-IID数据
+def split_non_iid(train_labels, alpha, n_clients):
+	n_classes = train_labels.max() + 1
+	label_distribution = np.random.dirichlet([alpha] * n_clients, n_classes)
+	class_idx = [np.argwhere(train_labels == y).flatten()
+					for y in range(n_classes)]
+	client_idx = [[] for _ in range(n_clients)]
+	for c, f in zip(class_idx, label_distribution):
+		for i, idx in enumerate(np.split(c, (np.cumsum(f)[:-1] * len(c)).astype(int))):
+			client_idx[i] += [idx]
+	client_idx = [np.concatenate(idx) for idx in client_idx]
+	return client_idx

@@ -2,8 +2,10 @@ import argparse, json
 import datetime
 import os
 import logging
+import numpy as np
 import pickle
 import sys
+import time
 import torch, random
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -45,6 +47,34 @@ def main(conf, args):
 	train_datasets, eval_datasets = datasets.get_dataset("./data", conf["type"])
 	global_model = models.get_model(conf["model_name"], True, device) # Set the flag to True to get pretrained model
 	servers = [Server(conf, global_model, eval_datasets, push, device) for _ in range(k)]	# 创建k个server, 相互独立但初始值相同
+
+	dataset_split_idx = None
+	dataset_split_idx_size = 0
+	split_idx = servers[0].split_data()
+
+	if is_global_main_process():
+		dataset_split_idx = split_idx[0]
+		if global_world_size > 1:
+			for num in range(1, global_world_size):
+				tensor = torch.tensor([split_idx[num].shape[0]])
+				dist.send(tensor, dst=num)
+	else:
+		tensor = torch.tensor([0])
+		dist.recv(tensor, src=0)
+		dataset_split_idx_size = tensor[0].item()
+	dist.barrier()
+
+	if is_global_main_process():
+		if global_world_size > 1:
+			for num in range(1, global_world_size):
+				tensor = torch.from_numpy(split_idx[num])
+				dist.send(tensor, dst=num)
+	else:
+		tensor = torch.tensor([0 for i in range(dataset_split_idx_size)])
+		dist.recv(tensor, src=0)
+		dataset_split_idx = tensor.numpy()
+	dist.barrier()
+
 	diffs = [dict() for _ in range(global_world_size + k)]
 
 	if is_global_main_process():
@@ -63,7 +93,7 @@ def main(conf, args):
 
 		notify_user(message, push)
 		print("\n")
-	client = Client(conf, global_model, train_datasets, eval_datasets, push, device)
+	client = Client(conf, global_model, train_datasets, eval_datasets, push, dataset_split_idx, device)
 	dist.barrier() # 确保客户端全部创建完毕
 
 	for e in range(conf["global_epochs"]):		# global epochs 全局轮次

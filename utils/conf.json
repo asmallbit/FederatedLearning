@@ -3,9 +3,11 @@
 	
 	"type" : "mnist",
 	
-	"global_epochs" : 50,
+	"global_epochs" : 10,
 	
 	"local_epochs" : 3,
+
+	"alpha": 0.05,
 
 	"k" : 1,
 	
