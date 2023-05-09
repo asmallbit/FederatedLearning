@@ -1,5 +1,5 @@
 {
-	"model_name" : "mnist-cnn",
+	"model_name" : "simple-cnn",
 	
 	"type" : "mnist",
 	

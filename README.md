@@ -81,6 +81,7 @@ torchrun --nproc_per_node=6 --nnodes=1 --node_rank=0 --rdzv_id=456 --rdzv_backen
 ```
 
 # Thanks
+[0xc0de996](https://github.com/0xc0de996/Federated_Learning)
 [Pytorch](https://pytorch.org/)
 [Azure](https://azure.microsoft.com/)
 [Zerotier](https://www.zerotier.com/)

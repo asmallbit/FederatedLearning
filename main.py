@@ -109,6 +109,7 @@ def main(conf, args):
 			print(message)
 			message = "[Global Model] Ephch " + str(e) + " started"
 			print(message)
+		dist.barrier()	# 防止local_train打印到全局训练轮数提示的上面
 
 		model_params = client.local_train()
 		dist.barrier()	# 训练完毕
@@ -241,6 +242,7 @@ def main(conf, args):
 			torch.save(servers[i].global_model.state_dict(), path + type + "-" + model_name + f"-{i}.pth")
 		
 		# 绘制准确率图像
+		plt.clf()
 		colors = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black']
 		path = "./figures/" + type + "/" + model_name + "/"
 		if not os.path.isdir(path):

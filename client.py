@@ -26,6 +26,11 @@ class Client(object):
 		self.train_dataset = train_dataset
 
 		self.eval_dataset = eval_dataset
+		
+		self.criterion = torch.nn.CrossEntropyLoss()
+
+		self.optimizer = torch.optim.SGD(self.local_model.parameters(), lr=self.conf['lr'],
+									momentum=self.conf['momentum'])
 
 		self.train_loader = DataLoader(dataset=Subset(self.train_dataset, dataset_split_idx),
 									batch_size=self.conf["batch_size"], 
@@ -41,11 +46,9 @@ class Client(object):
 	def local_train(self):
 		# space = [Real(0.0001, 0.1, name='learning_rate')]
 		# for name, param in model.state_dict().items():
-		# 	self.local_model.state_dict()[name].copy_(param.clone())	
-		optimizer = torch.optim.SGD(self.local_model.parameters(), lr=self.conf['lr'],
-									momentum=self.conf['momentum'])
-		scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', 
-															factor=self.conf['factor'], patience=self.conf['patience'])
+		# 	self.local_model.state_dict()[name].copy_(param.clone())
+		# scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', 
+															# factor=self.conf['factor'], patience=self.conf['patience'])
 		self.local_model.train()
 
 		message = "[Client] Client " + str(self.client_id) + " local train started"
@@ -55,18 +58,17 @@ class Client(object):
 			message = "[Client] Client " + str(self.client_id) + " epoch " + str(e) + " started."
 			notify_user(message, self.push)
 			
-			for batch_id, batch in enumerate(self.train_loader):
-				data, target = batch
+			for data, target in self.train_loader:
 				data = data.to(self.device)
 				target = target.to(self.device)
 			
-				optimizer.zero_grad()
+				self.optimizer.zero_grad()
 				output = self.local_model(data)
-				loss = torch.nn.functional.cross_entropy(output, target)
+				loss = self.criterion(output, target)
 				loss.backward()
-				optimizer.step()
+				self.optimizer.step()
 
-				scheduler.step(loss)	# 调整学习率
+				# scheduler.step(loss)	# 调整学习率
 
 			message = "[Client] Client " + str(self.client_id) + " epoch " + str(e) + " done."
 			notify_user(message, self.push)
@@ -74,7 +76,6 @@ class Client(object):
 		message = "[Client] Client " + str(self.client_id) + " local train done"
 		notify_user(message, self.push)
 		return self.local_model.state_dict()
-
 
 	def model_eval(self, epoch):
 		self.local_model.eval()
