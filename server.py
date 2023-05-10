@@ -1,4 +1,5 @@
 import models, torch
+import copy
 import datasets
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,12 +16,12 @@ class Server(object):
 	
 		self.conf = conf 
 		
-		self.global_model = model
+		self.global_model = copy.deepcopy(model)
 
 		self.device = device
 
 		self.push = push
-		
+
 		self.eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=self.conf["batch_size"], shuffle=False)
 
 	def split_data(self):

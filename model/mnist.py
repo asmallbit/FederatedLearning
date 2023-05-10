@@ -8,7 +8,7 @@ class MNIST_CNN(nn.Module):
                 in_channels=1,              
                 out_channels=16,            
                 kernel_size=5,              
-                stride=1,                   
+                stride=1,
                 padding=2,                  
             ),                              
             nn.ReLU(),                      

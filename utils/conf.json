@@ -1,27 +1,19 @@
 {
-	"model_name" : "simple-cnn",
+	"model_name" : "mnist-cnn",
 	
 	"type" : "mnist",
 	
 	"global_epochs" : 10,
 	
-	"local_epochs" : 3,
+	"local_epochs" : 1,
 
 	"alpha": 0.05,
-
-	"k" : 1,
 	
-	"batch_size" : 32,
+	"batch_size" : 100,
 	
-	"lr" : 0.5,
-
-	"factor": 0.1,
-
-	"patience": 10,
+	"lr" : 0.01,
 	
-	"momentum" : 0.9,
-	
-	"lambda" : 0.1,
+	"lambda" : 1,
 
 	"accuracy_difference_threshold" : 0.0001,
 

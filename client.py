@@ -1,6 +1,7 @@
 import models, torch, copy, os
-# from skopt.space import Real
-import pickle
+import multiprocessing as mp
+import numpy as np
+from torch.autograd import Variable
 from torch.utils.data import DataLoader, SubsetRandomSampler, Subset
 from typing import Union
 
@@ -15,7 +16,7 @@ class Client(object):
 		
 		self.conf = conf
 
-		self.local_model = model
+		self.local_model = copy.deepcopy(model)
 		
 		self.client_id = get_global_rank()
 
@@ -29,16 +30,18 @@ class Client(object):
 		
 		self.criterion = torch.nn.CrossEntropyLoss()
 
-		self.optimizer = torch.optim.SGD(self.local_model.parameters(), lr=self.conf['lr'],
-									momentum=self.conf['momentum'])
+		self.optimizer = torch.optim.Adam(self.local_model.parameters(), lr = self.conf['lr']) 
 
-		self.train_loader = DataLoader(dataset=Subset(self.train_dataset, dataset_split_idx),
-									batch_size=self.conf["batch_size"], 
-									num_workers=4, prefetch_factor=2, pin_memory=True) # 这里pin_memory的作用是加速GPU读取数据
+		self.train_loader = DataLoader(dataset=Subset(self.train_dataset, np.sort(dataset_split_idx)),
+									shuffle=True,
+									batch_size=self.conf["batch_size"],
+									num_workers = mp.cpu_count(),
+									prefetch_factor=2, pin_memory=True) # 这里pin_memory的作用是加速GPU读取数据
 
 		self.eval_loader = DataLoader(eval_dataset, batch_size=self.conf["batch_size"],
 									shuffle=False,
-									num_workers=4, prefetch_factor=2, pin_memory=True)
+									num_workers = mp.cpu_count(),
+									prefetch_factor=2, pin_memory=True)
 
 	def update_model(self, diff):
 		self.local_model.load_state_dict(diff)
@@ -53,59 +56,35 @@ class Client(object):
 
 		message = "[Client] Client " + str(self.client_id) + " local train started"
 		notify_user(message, self.push)
-		
+		loss_avg = 0
 		for e in range(self.conf["local_epochs"]):
-			message = "[Client] Client " + str(self.client_id) + " epoch " + str(e) + " started."
+			message = "[Client] Client " + str(self.client_id) + " epoch " + str(e + 1) + " started."
 			notify_user(message, self.push)
-			
-			for data, target in self.train_loader:
+			for batch_id, batch in enumerate(self.train_loader):
+				data, target = batch
 				data = data.to(self.device)
 				target = target.to(self.device)
 			
-				self.optimizer.zero_grad()
 				output = self.local_model(data)
 				loss = self.criterion(output, target)
+				self.optimizer.zero_grad()
 				loss.backward()
+				loss_avg += loss.item() / (len(self.train_loader) * self.conf["local_epochs"])
 				self.optimizer.step()
 
-				# scheduler.step(loss)	# 调整学习率
+				if (batch_id + 1) % 100 == 0:
+					notify_user("[Client {}] Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}".format(
+								get_global_rank(), e + 1, self.conf["local_epochs"], batch_id + 1, 
+								len(self.train_loader), loss),
+							self.push)
+				# 发送acc和loss到服务器(rank 0)
+				if batch_id + 1 == len(self.train_loader) and e + 1 == self.conf["local_epochs"]:
+					message = "[Client] Client " + str(self.client_id) + " epoch " + str(e + 1) + " done."
+					notify_user(message, self.push)
 
-			message = "[Client] Client " + str(self.client_id) + " epoch " + str(e) + " done."
-			notify_user(message, self.push)
+					message = "[Client] Client " + str(self.client_id) + " local train done"
+					notify_user(message, self.push)
 
-		message = "[Client] Client " + str(self.client_id) + " local train done"
-		notify_user(message, self.push)
-		return self.local_model.state_dict()
+					return self.local_model.state_dict(), loss_avg
 
-	def model_eval(self, epoch):
-		self.local_model.eval()
-		
-		total_loss = 0.0
-		correct = 0
-		dataset_size = 0
-		for batch_id, batch in enumerate(self.eval_loader):
-			data, target = batch
-			data = data.to(self.device)
-			target = target.to(self.device)
-
-			dataset_size += data.size()[0]
-
-			output = self.local_model(data)
-			
-			total_loss += torch.nn.functional.cross_entropy(output, target,
-											  reduction='sum').item() # sum up batch loss
-			pred = output.data.max(1)[1]  # get the index of the max log-probability
-			correct += pred.eq(target.data.view_as(pred)).cpu().sum().item()
-
-		acc = float(correct) / float(dataset_size)
-		loss = total_loss / dataset_size
-
-		message = f'[Client {get_global_rank()}] Epoch {epoch}, acc = {acc}, loss = {loss}'
-		notify_user(message, self.push)
-
-		# 发送acc和loss到服务器(rank 0)
-		if not is_global_main_process():
-			tensor = torch.tensor([acc, loss])
-			dist.send(tensor, 0)
-		
-		return acc, loss
+		return dict(), 99999 # 仅起到占位作用， 实际上不会用到

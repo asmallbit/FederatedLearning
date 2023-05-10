@@ -27,6 +27,14 @@ torchrun --nproc_per_node=4 --nnodes=10 --node_rank=1 --rdzv_id=456 --rdzv_backe
 ```
 torchrun --nproc_per_node=6 --nnodes=1 --node_rank=0 --rdzv_id=456 --rdzv_backend=c10d --rdzv_endpoint=127.0.0.1:xxxx main.py
 ```
+
+* Single Node Multi-CPU:
+在机器上执行
+```
+python3 main_mp.py --process_threshold $(nproc)		# process_threshold参数是要开启的进程数
+# TODO: 这里有个问题，没有办法显示输出，暂时采用配置Telegram推送，查看实时输出
+```
+
 关于`torchrun`中各个参数的意义， 可以参见[Pytorch文档](https://pytorch.org/docs/stable/elastic/run.html#definitions)
 
 关于配置文件 `utils/conf.json`
@@ -41,24 +49,12 @@ torchrun --nproc_per_node=6 --nnodes=1 --node_rank=0 --rdzv_id=456 --rdzv_backen
 	"local_epochs" : 3,         // 本地epoch
 
 	"alpha": 0.05,				// 刻画Non-IID程度
-
-	"k" : 3,					// 聚类的簇数
 	
 	"batch_size" : 32,
 	
 	"lr" : 0.005,               // 学习率
-
-	"factor": 0.1,              // 客户端采用的自适应修改学习率， factor和patience是torch.optim.lr_scheduler.ReduceLROnPlateau()的两个参数
-
-	"patience": 10,
-	
-	"momentum" : 0.9,        // SGD中的动量
 	
 	"lambda" : 0.1,
-
-	"accuracy_difference_threshold" : 0.0001,   // 当两次全局的accuracy相差的绝对值小于此值，同时也满足loss_difference_threshold中的条件，会视为收敛，进而结束训练过程
-
-	"loss_difference_threshold" : 0.0001,       // 当两次全局的loss相差的绝对值小于此值，和accuracy_difference_threshold搭配使用
 
 	"is_push_enable": true,     // 其否启用推送，接入推送的目的主要是方便实时查看训练的进度
 
@@ -82,6 +78,8 @@ torchrun --nproc_per_node=6 --nnodes=1 --node_rank=0 --rdzv_id=456 --rdzv_backen
 
 # Thanks
 [0xc0de996](https://github.com/0xc0de996/Federated_Learning)
+[FederatedAI](https://github.com/FederatedAI/Practicing-Federated-Learning)
+[Nutan](https://medium.com/@nutanbhogendrasharma/pytorch-convolutional-neural-network-with-mnist-dataset-4e8a4265e118)
 [Pytorch](https://pytorch.org/)
 [Azure](https://azure.microsoft.com/)
 [Zerotier](https://www.zerotier.com/)
