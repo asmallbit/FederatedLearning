@@ -8,12 +8,14 @@ matplotlib==3.2.1
 numpy==1.23.5
 requests==2.28.2
 torch==1.13.1
-torchvision==0.9.1
+torchvision==0.14.1
 PySocks==1.7.1
 scikit-learn==1.2.2
 ```
 
 # 运行
+Tips: 运行之前最好在各个参与训练的设备上先执行一下`torchrun --nproc_per_node=1 --nnodes=1 --node_rank=0 --rdzv_id=456 --rdzv_backend=c10d --rdzv_endpoint=127.0.0.1:3214 main.py`，将模型和数据集下载到本地，因为涉及到的模式比较多，在不增加额外的配置变量的情况下，我目前还没有一个很好的方法来确定`Local Main Process`，导致本地各个进程都在同一时间对下载数据集和模型，产生多进程读写安全问题，进而可能导致程序运行失败。
+
 * Multinode Multi-GPU:
 在每台机器上执行
 ```
@@ -32,7 +34,6 @@ torchrun --nproc_per_node=6 --nnodes=1 --node_rank=0 --rdzv_id=456 --rdzv_backen
 在机器上执行
 ```
 python3 main_mp.py --process_threshold $(nproc)		# process_threshold参数是要开启的进程数
-# TODO: 这里有个问题，没有办法显示输出，暂时采用配置Telegram推送，查看实时输出
 ```
 
 关于`torchrun`中各个参数的意义， 可以参见[Pytorch文档](https://pytorch.org/docs/stable/elastic/run.html#definitions)
@@ -49,6 +50,8 @@ python3 main_mp.py --process_threshold $(nproc)		# process_threshold参数是要
 	"local_epochs" : 3,         // 本地epoch
 
 	"alpha": 0.05,				// 刻画Non-IID程度
+
+	"k": 3						// 聚类的簇数
 	
 	"batch_size" : 32,
 	
@@ -77,10 +80,14 @@ python3 main_mp.py --process_threshold $(nproc)		# process_threshold参数是要
 ```
 
 # Thanks
+[OpenAI](https://openai.com/)
 [0xc0de996](https://github.com/0xc0de996/Federated_Learning)
+[Phani Rohith](https://towardsdatascience.com/federated-learning-through-distance-based-clustering-5b09c3700b3c)
 [FederatedAI](https://github.com/FederatedAI/Practicing-Federated-Learning)
 [Nutan](https://medium.com/@nutanbhogendrasharma/pytorch-convolutional-neural-network-with-mnist-dataset-4e8a4265e118)
 [Pytorch](https://pytorch.org/)
+[Google Colab](https://colab.research.google.com/)
+[Oracle Cloud](https://www.oracle.com/cloud/)
 [Azure](https://azure.microsoft.com/)
 [Zerotier](https://www.zerotier.com/)
 [Code-server](https://coder.com/)

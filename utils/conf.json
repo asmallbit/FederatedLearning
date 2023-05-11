@@ -1,5 +1,5 @@
 {
-	"model_name" : "mnist-cnn",
+	"model_name" : "simple-cnn",
 	
 	"type" : "mnist",
 	
@@ -8,6 +8,8 @@
 	"local_epochs" : 1,
 
 	"alpha": 0.05,
+
+	"k": 3,
 	
 	"batch_size" : 100,
 	

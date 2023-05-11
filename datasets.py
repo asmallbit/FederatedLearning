@@ -4,6 +4,7 @@ import torch
 import numpy as np
 from torchvision import datasets, transforms
 from dataset import dog_and_cat
+from utils.utils import *
 
 def get_dataset(dir, name):
 	
@@ -75,3 +76,74 @@ def split_non_iid(train_labels, alpha, n_clients):
 			client_idx[i] += [idx]
 	client_idx = [np.concatenate(idx) for idx in client_idx]
 	return client_idx
+
+
+# 获取与训练集标签分布相同的测试集
+def split_eval_dataset(train_labels, train_dataset, eval_dataset, split_idx):
+	# 存储每个客户端的标签计数
+	client_num = len(split_idx)
+	n_classes = train_labels.max() + 1
+	if torch.is_tensor(train_dataset.targets):
+		train_label_counts = np.zeros((client_num, len(torch.unique(train_dataset.targets))))
+		rate = np.zeros((client_num, len(torch.unique(train_dataset.targets))))	# 存储各个客户端的训练集某个标签数量占全部客户端这个标签数量的比例
+	else:
+		train_label_counts = np.zeros((client_num, len(np.unique(train_dataset.targets))))
+		rate = np.zeros((client_num, len(np.unique(train_dataset.targets))))
+
+	# 遍历每个客户端的数据集
+	for i in range(client_num):
+		for j in split_idx[i]:
+			train_label_counts[i][train_dataset.targets[j]] += 1
+	
+	label_sum = [0 for _ in range(n_classes)]	# 所有客户端中各个标签数目之和
+	
+	eval_client_idx = [[] for _ in range(client_num)]
+	label_indices = get_dataset_label_array(eval_dataset)
+	samples = get_samples_by_label(eval_dataset)	# 存储测试集中, 每个标签对应的所有序号
+
+	# 计算split_idx中各个标签的总数
+	for i in range(n_classes):
+		for j in range(client_num):
+			label_sum[i] += train_label_counts[j][i]
+
+	for i in range(client_num):
+		for j in range(n_classes):
+			rate[i][j] = train_label_counts[i][j] / label_sum[j]
+			temp = np.random.choice(samples[j], 
+									size=int(rate[i][j] * label_indices[j]), replace=False)
+			eval_client_idx[i].extend(temp)
+		eval_client_idx[i] = sorted(eval_client_idx[i])
+
+	return eval_client_idx
+			
+# 统计数据集各个标签的样本数目
+def get_dataset_label_array(dataset):
+	if torch.is_tensor(dataset.targets):
+		label_counts = [0 for _ in range(len(torch.unique(dataset.targets)))]
+	else:
+		label_counts = [0 for _ in range(len(np.unique(dataset.targets)))]
+
+	for i in range(len(dataset)):
+		label_counts[dataset.targets[i]] += 1
+	return label_counts
+
+# 获取数据集中标签所包含的所有元素对应的序号
+def get_samples_by_label(dataset):
+	if torch.is_tensor(dataset.targets):
+		samples = [[] for _ in range(len(torch.unique(dataset.targets)))]
+	else:
+		samples = [[] for _ in range(len(np.unique(dataset.targets)))]
+	for i in range(len(dataset)):
+		samples[dataset.targets[i]].append(i)
+	return samples
+
+# 获取每个客户端的labels个数
+def get_labels_num_each_client(datasets, array):
+	if torch.is_tensor(datasets.targets):
+		sample = [[0 for _ in range(len(torch.unique(datasets.targets)))] for _ in range(get_global_world_size())]
+	else:
+		sample = [[0 for _ in range(len(np.unique(datasets.targets)))] for _ in range(get_global_world_size())]
+	for i in range(len(array)):
+		for j in range(len(array[i])):
+			sample[i][datasets.targets[array[i][j]]] += 1
+	return sample

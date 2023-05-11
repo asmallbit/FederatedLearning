@@ -53,3 +53,6 @@ docs/_build/
 push/__pycache__/
 push/telegram/__pycache__/
 data/
+figures/
+result/
+example/
