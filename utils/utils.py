@@ -1,4 +1,5 @@
 import torch
+import itertools
 import numpy as np
 import random
 import matplotlib.pyplot as plt
@@ -51,3 +52,10 @@ def cluster_kmeans(dicts, k, epoch, model_name, type):
     plt.savefig(f"{path}{type}-{model_name}-cluster-{epoch + 1}.png")
 
     return kmeans.fit(reduced_data)
+
+# 根据给定的数量生成若干种颜色
+def get_colors_array(client_num):
+    # 定义自定义的颜色循环
+    colors = plt.cm.tab20(np.linspace(0, 1, client_num))  # 生成20个不重复的颜色
+    colors_cycle = itertools.cycle(colors)
+    return colors_cycle 

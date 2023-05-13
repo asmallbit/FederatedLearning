@@ -220,13 +220,13 @@ def main(conf, args):
 		
 		# 绘制准确率图像
 		plt.clf()
-		colors = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black']
+		colors = get_colors_array(global_world_size)
 		path = f"./figures/{type}/{model_name}/"
 		if not os.path.isdir(path):
 			os.makedirs(path)
 		i = 0
 		for acc in acc_list:
-			plt.plot(range(1, conf["global_epochs"] + 1), acc, label=f'Global Model {i} Accuracy', linewidth=1.0, color=colors[i % len(colors)])
+			plt.plot(range(1, conf["global_epochs"] + 1), acc, label=f'Global Model {i} Accuracy', linewidth=1.0, color=next(colors))
 			i += 1
 		plt.xlabel('Epoch')
 		plt.ylabel('Accuracy')
@@ -238,7 +238,7 @@ def main(conf, args):
 		plt.clf()
 		i = 0
 		for loss in loss_list:
-			plt.plot(range(1, conf["global_epochs"] + 1), loss, label=f'Global Model {i} Loss', linewidth=1.0, color=colors[i % len(colors)])
+			plt.plot(range(1, conf["global_epochs"] + 1), loss, label=f'Global Model {i} Loss', linewidth=1.0, color=next(colors))
 			i += 1
 		plt.xlabel('Epoch')
 		plt.ylabel('Loss')
@@ -250,7 +250,7 @@ def main(conf, args):
 		# plt.clf()
 		# i = 0
 		# for acc in client_acc_list:
-		# 	plt.plot(range(1, conf["global_epochs"] + 1), acc, label=f"Client{i} Accuracy", linewidth=1.0, color=colors[i % len(colors)])
+		# 	plt.plot(range(1, conf["global_epochs"] + 1), acc, label=f"Client{i} Accuracy", linewidth=1.0, color=next(colors))
 		# 	i += 1
 		# plt.xlabel('Epoch')
 		# plt.ylabel('Accuracy')
@@ -262,7 +262,7 @@ def main(conf, args):
 		plt.clf()
 		i = 0
 		for loss in client_loss_list:
-			plt.plot(range(1, conf["global_epochs"] + 1), loss, label=f"Client{i} Loss", linewidth=1.0, color=colors[i % len(colors)])
+			plt.plot(range(1, conf["global_epochs"] + 1), loss, label=f"Client{i} Loss", linewidth=1.0, color=next(colors))
 			i += 1
 		plt.xlabel('Epoch')
 		plt.ylabel('Loss')

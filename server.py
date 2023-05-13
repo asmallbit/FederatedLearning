@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader, Subset
 
 from push.push import Push
 from utils.distributed_utils import *
+from utils.utils import *
 
 class Server(object):
 	
@@ -46,14 +47,14 @@ class Server(object):
 		plt.clf()
 		plt.figure(figsize=(20, 3))
 		x = range(labels.max() + 1)
-		colors = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black']
+		colors = get_colors_array(get_global_world_size())
 		plt.xticks(x)
 		if get_global_world_size() == 1:
-			plt.bar(x, train_dataset_labels_array[0], label="Client", color=colors[0])
+			plt.bar(x, train_dataset_labels_array[0], label="Client")
 		else:
 			bottom = None
 			for i in range(get_global_world_size()):
-				plt.bar(x, train_dataset_labels_array[i], bottom=bottom, label=f"Client {i}", color=colors[i % len(colors)])
+				plt.bar(x, train_dataset_labels_array[i], bottom=bottom, label=f"Client {i}", color=next(colors))
 				if bottom is None:
 					bottom = train_dataset_labels_array[i]
 				else:
@@ -69,11 +70,11 @@ class Server(object):
 		plt.figure(figsize=(20, 3))
 		plt.xticks(x)
 		if get_global_world_size() == 1:
-			plt.bar(x, eval_dataset_labels_array[0], label="Client", color=colors[0])
+			plt.bar(x, eval_dataset_labels_array[0], label="Client")
 		else:
 			bottom = None
 			for i in range(get_global_world_size()):
-				plt.bar(x, eval_dataset_labels_array[i], bottom=bottom, label=f"Client {i}", color=colors[i % len(colors)])
+				plt.bar(x, eval_dataset_labels_array[i], bottom=bottom, label=f"Client {i}", color=next(colors))
 				if bottom is None:
 					bottom = eval_dataset_labels_array[i]
 				else:
