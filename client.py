@@ -34,6 +34,7 @@ class Client(object):
 
 		self.train_loader = DataLoader(dataset=Subset(self.train_dataset, np.sort(dataset_split_idx)),
 									shuffle=True,
+									drop_last=True,
 									batch_size=self.conf["batch_size"],
 									num_workers = mp.cpu_count(),
 									prefetch_factor=2, pin_memory=True) # 这里pin_memory的作用是加速GPU读取数据

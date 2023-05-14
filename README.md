@@ -86,6 +86,7 @@ python3 main_mp.py --process_threshold $(nproc)		# process_threshold参数是要
 [FederatedAI](https://github.com/FederatedAI/Practicing-Federated-Learning)
 [Nutan](https://medium.com/@nutanbhogendrasharma/pytorch-convolutional-neural-network-with-mnist-dataset-4e8a4265e118)
 [Pytorch](https://pytorch.org/)
+[Kaggle](https://www.kaggle.com)
 [Google Colab](https://colab.research.google.com/)
 [Oracle Cloud](https://www.oracle.com/cloud/)
 [Azure](https://azure.microsoft.com/)
