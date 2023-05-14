@@ -55,10 +55,10 @@ def main(conf, args):
 		dataset_split_idx = split_idx[0]
 		if global_world_size > 1:
 			for num in range(1, global_world_size):
-				tensor = torch.tensor([split_idx[num].shape[0]])
+				tensor = torch.tensor([split_idx[num].shape[0]], device=device)
 				dist.send(tensor, dst=num)
 	else:
-		tensor = torch.tensor([0])
+		tensor = torch.tensor([0], device=device)
 		dist.recv(tensor, src=0)
 		dataset_split_idx_size = tensor[0].item()
 	dist.barrier()
@@ -69,7 +69,7 @@ def main(conf, args):
 				tensor = torch.from_numpy(split_idx[num])
 				dist.send(tensor, dst=num)
 	else:
-		tensor = torch.tensor([0 for i in range(dataset_split_idx_size)])
+		tensor = torch.tensor([0 for i in range(dataset_split_idx_size)], device=device)
 		dist.recv(tensor, src=0)
 		dataset_split_idx = tensor.numpy()
 	dist.barrier()
@@ -118,7 +118,7 @@ def main(conf, args):
 			# 收集每个客户端发送来的数据
 			if global_world_size > 1:
 				for clinet_index in range(1, global_world_size):
-						tensor = torch.tensor([0.0, 0.0])
+						tensor = torch.tensor([0.0, 0.0], device=device)
 						dist.recv(tensor, src=clinet_index)
 						# client_acc_list/client_loss_client的长度为e
 						# client_acc_list[clinet_index].append(tensor[0].item())	# 暂时不统计本地训练accuracy
@@ -127,7 +127,7 @@ def main(conf, args):
 			# client_acc_list[0].append(0)
 			client_loss_list[0].append(client_loss)
 		else:
-			tensor = torch.tensor([0, client_loss])
+			tensor = torch.tensor([0, client_loss], device=device)
 			dist.send(tensor, dst=0)
 		dist.barrier()
 
@@ -198,7 +198,7 @@ def main(conf, args):
 			model_params_copy = copy.deepcopy(model_params)
 			# 接收服务器发来的参数
 			for key, value in model_params.items():	# 更新diff的值
-				temp = torch.zeros_like(model_params[key])
+				temp = torch.zeros_like(model_params[key], device=device)
 				dist.recv(temp, src=0)
 				model_params_copy[key] = temp
 

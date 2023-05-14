@@ -3,15 +3,15 @@
 	
 	"type" : "mnist",
 	
-	"global_epochs" : 10,
+	"global_epochs" : 2,
 	
 	"local_epochs" : 1,
 
-	"alpha": 0.05,
+	"alpha": 1,
 
-	"k": 3,
+	"k": 1,
 	
-	"batch_size" : 100,
+	"batch_size" : 64,
 	
 	"lr" : 0.01,
 	
