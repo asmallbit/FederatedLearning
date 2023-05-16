@@ -79,6 +79,9 @@ python3 main_mp.py --process_threshold $(nproc)		# process_threshold参数是要
 }
 ```
 
+# Special Thanks
+[rtx4d](https://github.com/rtx4d) For his wonderful server:>
+
 # Thanks
 [OpenAI](https://openai.com/)
 [0xc0de996](https://github.com/0xc0de996/Federated_Learning)

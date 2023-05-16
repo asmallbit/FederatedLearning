@@ -35,12 +35,13 @@ def cluster_kmeans(dicts, k, epoch, model_name, type):
     reduced_data = pca.fit_transform(data)    # 将data降至2维
 
     # 使用kmeans对矩阵进行聚类
-    kmeans = KMeans(n_clusters=k, init="k-means++", algorithm="elkan", random_state=5)
+    kmeans = KMeans(n_clusters=k, init="k-means++", random_state=5)
     label = kmeans.fit_predict(reduced_data)
 
     # 画图
     centroids = kmeans.cluster_centers_
 
+    # 聚类结果图
     plt.clf()
     for i in np.unique(label):
         plt.scatter(reduced_data[label == i, 0], reduced_data[label == i, 1], label = f"Group {i}")
@@ -51,11 +52,26 @@ def cluster_kmeans(dicts, k, epoch, model_name, type):
 	    os.makedirs(path)
     plt.savefig(f"{path}{type}-{model_name}-cluster-{epoch + 1}.png")
 
+    # 误差平方图
+    plt.clf()
+    sse = []
+    for i in range(1, get_global_world_size()):
+        temp = KMeans(n_clusters=i)
+        temp.fit(reduced_data)
+        sse.append(temp.inertia_)
+    plt.xlabel("k")
+    plt.ylabel("SSE")
+    plt.plot(range(1, get_global_world_size()), sse, 'o-')    # 点线图
+    path = f"./figures/{type}/{model_name}/cluster/sse/"
+    if not os.path.isdir(path):
+	    os.makedirs(path)
+    plt.savefig(f"{path}{type}-{model_name}-cluster-sse-{epoch + 1}.png")
+
     return kmeans.fit(reduced_data)
 
 # 根据给定的数量生成若干种颜色
 def get_colors_array(client_num):
     # 定义自定义的颜色循环
-    colors = plt.cm.tab20(np.linspace(0, 1, client_num))  # 生成20个不重复的颜色
+    colors = plt.cm.tab20(np.linspace(0, 1, client_num))  # 生成client_num个不重复的颜色
     colors_cycle = itertools.cycle(colors)
     return colors_cycle 
