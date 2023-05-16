@@ -102,6 +102,7 @@ class Server(object):
 					weight_accumulator[key] += value * (len_array[index] / total)
 				else:
 					weight_accumulator[key] = value * (len_array[index] / total)
+			index += 1
 		return weight_accumulator
 
 	

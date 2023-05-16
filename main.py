@@ -276,7 +276,7 @@ def main(conf, args):
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Federated Learning')
 	parser.add_argument('-c', '--conf', type=str, default='./utils/conf.json', dest='conf')
-	parser.add_argument('--gpu', type=int, default=-1, help='Which GPU to run,-1 mean CPU, 0,1,2,... for GPU')
+	parser.add_argument('--gpu', type=int, default=-1, help='Which GPU to run,-1 means CPU, 0,1,2,... for GPU')
 	args  = parser.parse_args()
 
 	with open(args.conf, 'r') as f:
