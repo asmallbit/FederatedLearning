@@ -87,21 +87,21 @@ class Server(object):
 
 		return split_idx
 
-	def calculate_weight_accumulator(self, models_params, samples):
-		len_array = []
+	# length_array是该簇中各个客户端分配的数据集训练集的个数
+	def calculate_weight_accumulator(self, models_params, length_array):
 		total = 0
-		for sample in samples:
-			len_array.append(sample.shape[0])
-			total += sample.shape[0]
+		for i in range(len(length_array)):
+			total += length_array[i]
 		weight_accumulator = {}
 		for model_params in models_params:
 			# 聚合这些数据
 			index = 0
 			for key, value in model_params.items():
 				if key in weight_accumulator:
-					weight_accumulator[key] += value * (len_array[index] / total)
+					weight_accumulator[key] += value * (length_array[index] / total)
 				else:
-					weight_accumulator[key] = value * (len_array[index] / total)
+					weight_accumulator[key] = value * (length_array[index] / total)
+			index += 1
 		return weight_accumulator
 
 	

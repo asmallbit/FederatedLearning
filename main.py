@@ -75,6 +75,9 @@ def main(conf, args):
 	dist.barrier()
 
 	diffs = [dict() for _ in range(global_world_size)]
+	flag_client = None				# 保存上次的各个k-means结果中各个结果的数据集的样本数
+	kmeans_grouped = None			# 保存上次聚类的结果
+	is_same = True					# 两次全局训练的聚类结果是否相同
 
 	if is_global_main_process():
 		# 分别用来存储全局epoch的acc和loss
@@ -151,13 +154,8 @@ def main(conf, args):
 		if is_global_main_process():
 			# 模型参数聚合
 			# 根据diffs数组中的值对diff进行聚合
-			kmeans = cluster_kmeans(diffs, k, e, conf["model_name"], conf["type"])	# 因为要画图，所以收集的参数多一些，核心参数只需要diffs和k
-			kmeans_grouped = {}	# 存储各个客户端与全局模型的对应关系
-			for i, label in enumerate(kmeans.labels_):
-				if label in kmeans_grouped:
-					kmeans_grouped[label].append(i)
-				else:
-					kmeans_grouped[label] = [i]
+			if e % 5 == 0:
+				is_same, kmeans_grouped = cluster_kmeans(diffs, k, kmeans_grouped, e, conf["model_name"], conf["type"])	# 因为要画图，所以收集的参数多一些，核心参数只需要diffs和k
 			
 			# 发送通知, 通知kmeans的分类结果
 			for i in range(k):
@@ -165,18 +163,33 @@ def main(conf, args):
 					notify_user(f"WARNING: Global Group {i} contains NOTHING!!!!!", push)
 				else:
 					notify_user(f"Global Group {i} contains client {kmeans_grouped[i]}", push)
-			
-			client_dataset_items = [[] for _ in range(k)]	# 各个集群中各个客户端数据集中包含的数据标号
-			# 将diffs按照聚类结果分成k组
-			diffs_grouped = [[] for _ in range(k)]
-			for label, cluster in kmeans_grouped.items():
-				for item in cluster:	# item是各个客户端的rank序号, 0, 1, 2, ...
-					client_dataset_items[label].append(split_idx[item])
-					diffs_grouped[label].append(diffs[item])
+			# TODO: 区分is_same的值, 若为True, 则进行簇内本地模型的聚合, 若为False, 则进行全局模型的聚合
+			if is_same:	# 如果相同的话, 按照常规的FedAvg方式更新各个簇的全局模型
+				client_dataset_items = [[] for _ in range(k)]	# 各个集群中各个客户端数据集中包含的数据标号
+				# 将diffs按照聚类结果分成k组
+				diffs_grouped = [[] for _ in range(k)]
+				for label, cluster in kmeans_grouped.items():
+					for item in cluster:	# item是各个客户端的rank序号, 0, 1, 2, ...
+						client_dataset_items[label].append(split_idx[item].shape[0])
+						diffs_grouped[label].append(diffs[item])
+				flag_client = client_dataset_items		# 保存本次的结果
 
-			# 聚合k个全局模型参数
+				# 聚合k个全局模型参数
+				for i in range(k):
+					servers[i].model_aggregate(servers[i].calculate_weight_accumulator(diffs_grouped[i], client_dataset_items[i]))
+			else:		# 如果不相同, 对全局模型进行聚合
+				diffs_grouped = []	# 存储所有全局模型的参数
+				group_dataset_items = [0 for _ in range(k)]	# 存储上次全局训练中各个全局模型对应的样本的总数
+				for i in range(k):
+					diffs_grouped.append(servers[i].global_model.state_dict())
+					for j in range(len(flag_client[i])):
+						group_dataset_items[i] += flag_client[i][j]
+				updated_model_parms = servers[0].calculate_weight_accumulator(diffs_grouped, group_dataset_items) # 使用FedAvg计算k个全局模型聚合结果
+				for i in range(k):
+					servers[i].model_aggregate(updated_model_parms)				# 更新各个全局模型
+				is_same = True		
+			
 			for i in range(k):
-				servers[i].model_aggregate(servers[i].calculate_weight_accumulator(diffs_grouped[i], client_dataset_items[i]))
 				acc, acc_5, loss = servers[i].model_eval(kmeans_grouped[i])
 				# Append accuracy and loss for this epoch to the corresponding lists
 				acc_list[i].append(acc)
