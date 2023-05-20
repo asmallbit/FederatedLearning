@@ -1,5 +1,6 @@
 # 项目说明
 Pytorch实现联邦学习
+https://github.com/asmallbit/FederatedLearning
 
 # 环境
 ```
@@ -12,6 +13,52 @@ torchvision==0.14.1
 PySocks==1.7.1
 scikit-learn==1.2.2
 ```
+
+# 目录结构
+```
+├── README.md
+├── client.py
+├── data				# 存放数据集资源文件
+│   ├── cifar-10
+│   └── mnist
+├── dataset				# 自定义数据集
+│   └── dog_and_cat.py
+├── example				# 一些实例的配置文件
+│   ├── cifar-resnet18-baseline.json
+│   ├── cifar-resnet18.json
+│   ├── mnist-mnist-cnn-baseline.json
+│   └── mnist-mnist-cnn.json
+├── figures				# 训练过程中可视化绘图
+│   ├── cifar
+│   └── mnist
+├── main.py
+├── main_mp.py			# CPU开启多个进程, 经测试仅适用于Linux, 对于Windows不适用
+├── model				# 自定义的模型
+│   ├── cat_and_dog.py
+│   ├── mnist.py
+│   └── simple_cnn.py
+├── models.py
+├── push				# 训练过程实时推送
+│   ├── push.py
+│   └── telegram
+│       └── telegram_push.py
+├── requirements.txt
+├── result				# 训练后得到的模型
+│   ├── cifar
+│   └── mnist
+├── server.py
+└── utils				# 一些工具方法和配置文件
+    ├── conf.json		# 程序配置文件
+    ├── distributed_utils.py	# 一些关于Pytorch rpc的方法
+    ├── output_handler.py		# 一些命令行输出和消息推送的方法
+    └── utils.py				# 杂七杂八的方法
+```
+
+# 扩展此程序
+扩展本程序，可以从数据集，模型以及推送方式等方面进行扩展。
+如果要扩展数据集，可以在`./dataset/`文件夹下新建实现类，实现数据集的获取，在`./datasets.py`中添加数据集。
+如果要扩展模型，可以在`./model/`文件夹下创建模型实现类，在`./models.py`中添加新模型。
+如果要引入新的推送方式，可以在`./push`文件夹下实现信息的推送功能，在`./push/push.py`添加新的推送方式。
 
 # 运行
 Tips: 运行之前最好在各个参与训练的设备上先执行一下`torchrun --nproc_per_node=1 --nnodes=1 --node_rank=0 --rdzv_id=456 --rdzv_backend=c10d --rdzv_endpoint=127.0.0.1:3214 main.py`，将模型和数据集下载到本地，因为涉及到的模式比较多，在不增加额外的配置变量的情况下，我目前还没有一个很好的方法来确定`Local Main Process`，导致本地各个进程都在同一时间对下载数据集和模型，产生多进程读写安全问题，进而可能导致程序运行失败。
