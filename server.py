@@ -43,6 +43,15 @@ class Server(object):
 		train_dataset_labels_array = datasets.get_labels_num_each_client(self.train_dataset, split_idx)
 		eval_dataset_labels_array = datasets.get_labels_num_each_client(self.eval_dataset, eval_split_idx)
 
+		# 推送各客户端数据集和验证集标签样本数目
+		if is_global_main_process():
+			type = self.conf["type"]
+			model_name = self.conf["model_name"]
+			message = f"[Result Dataset] {type}-{model_name}-train-{self.conf['k']}: {train_dataset_labels_array}"
+			notify_user(message, self.push)
+			message = f"[Result Dataset] {type}-{model_name}-eval-{self.conf['k']}: {eval_dataset_labels_array}"
+			notify_user(message, self.push)
+
 		# 绘制训练集数据分布图像
 		plt.clf()
 		plt.figure(figsize=(20, 3))

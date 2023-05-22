@@ -4,6 +4,7 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 from utils.distributed_utils import *
+from utils.output_handler import *
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 
@@ -18,7 +19,7 @@ def seed_everything(seed):
         torch.backends.cudnn.deterministic = True
         torch.cuda.manual_seed_all(seed) # All GPU (Optional)
 
-def cluster_kmeans(dicts, k, epoch, model_name, type):
+def cluster_kmeans(dicts, k, epoch, model_name, type, push):
     # 将每个字典中的tensor值转换为numpy数组
     array_list = [[] for i in range(get_global_world_size())]    
 
@@ -33,6 +34,10 @@ def cluster_kmeans(dicts, k, epoch, model_name, type):
     data = np.vstack(array_list)
     pca = PCA(n_components=2)
     reduced_data = pca.fit_transform(data)    # 将data降至2维
+
+    # 打印降维后的模型参数
+    message = f"[Result Cluster] {type}-{model_name}-cluster-{k}-epoch{epoch}: {reduced_data}"
+    notify_user(message, push)
 
     # 使用kmeans对矩阵进行聚类
     kmeans = KMeans(n_clusters=k, init="k-means++", random_state=5)
@@ -59,6 +64,9 @@ def cluster_kmeans(dicts, k, epoch, model_name, type):
         temp = KMeans(n_clusters=i)
         temp.fit(reduced_data)
         sse.append(temp.inertia_)
+    # 打印降维后的模型参数
+    message = f"[Result Cluster] {type}-{model_name}-cluster-sse-{k}-epoch{epoch}: {sse}"
+    notify_user(message, push)
     plt.xlabel("k")
     plt.ylabel("SSE")
     plt.plot(range(1, get_global_world_size()), sse, 'o-')    # 点线图

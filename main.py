@@ -151,7 +151,7 @@ def main(conf, args):
 		if is_global_main_process():
 			# 模型参数聚合
 			# 根据diffs数组中的值对diff进行聚合
-			kmeans = cluster_kmeans(diffs, k, e, conf["model_name"], conf["type"])	# 因为要画图，所以收集的参数多一些，核心参数只需要diffs和k
+			kmeans = cluster_kmeans(diffs, k, e, conf["model_name"], conf["type"], push)	# 因为要画图，所以收集的参数多一些，核心参数只需要diffs和k
 			kmeans_grouped = {}	# 存储各个客户端与全局模型的对应关系
 			for i, label in enumerate(kmeans.labels_):
 				if label in kmeans_grouped:
@@ -217,6 +217,18 @@ def main(conf, args):
 			os.makedirs(path)
 		for i in range(k):
 			torch.save(servers[i].global_model.state_dict(), f"{path}{type}-{model_name}-{i}.pth")
+			
+		# 推送k个全局模型accuracy
+		message = f"[Result Global Model] {type}-{model_name}-{k} accuracy = {acc_list}"
+		notify_user(message, push)
+
+		# 推送k个全局模型loss
+		message = f"[Result Global Model] {type}-{model_name}-{k} loss = {loss_list}"
+		notify_user(message, push)
+
+		# 推送loss
+		message = f"[Result Client] {type}-{model_name}-client-{k} loss = {client_loss_list}"
+		notify_user(message, push)
 		
 		# 绘制准确率图像
 		plt.clf()
